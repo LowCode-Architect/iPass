@@ -1,0 +1,410 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Plus, Eye, EyeOff, Copy, Star, StarOff, Lock, Unlock, Settings, Trash2, Edit3 } from 'lucide-react';
+
+const PasswordManager = () => {
+  const [isLocked, setIsLocked] = useState(true);
+  const [masterPassword, setMasterPassword] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [accounts, setAccounts] = useState([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [visiblePasswords, setVisiblePasswords] = useState(new Set());
+
+  // 샘플 데이터
+  const sampleAccounts = [
+    {
+      id: 1,
+      serviceName: 'Gmail',
+      username: 'myemail@gmail.com',
+      password: 'SecurePass123!',
+      url: 'https://gmail.com',
+      category: '이메일',
+      keywords: ['구글', 'google', 'mail', 'gmail'],
+      isFavorite: true,
+      lastModified: new Date('2024-01-15'),
+      strength: 4
+    },
+    {
+      id: 2,
+      serviceName: '네이버',
+      username: 'myuser123',
+      password: 'naver2024@',
+      url: 'https://naver.com',
+      category: '포털',
+      keywords: ['naver', 'portal', '포털', '검색'],
+      isFavorite: false,
+      lastModified: new Date('2024-01-10'),
+      strength: 3
+    },
+    {
+      id: 3,
+      serviceName: 'GitHub',
+      username: 'developer123',
+      password: 'GitH@b_Secure789',
+      url: 'https://github.com',
+      category: '개발',
+      keywords: ['git', 'github', 'code', '개발', 'repository'],
+      isFavorite: true,
+      lastModified: new Date('2024-01-20'),
+      strength: 5
+    },
+    {
+      id: 4,
+      serviceName: '카카오뱅크',
+      username: '01012345678',
+      password: 'KBank#2024',
+      url: 'https://kakaobank.com',
+      category: '금융',
+      keywords: ['kakao', '카카오', 'bank', '은행', '금융'],
+      isFavorite: false,
+      lastModified: new Date('2024-01-05'),
+      strength: 4
+    },
+    {
+      id: 5,
+      serviceName: 'Netflix',
+      username: 'viewer@email.com',
+      password: 'Netflix$Stream2024',
+      url: 'https://netflix.com',
+      category: '엔터테인먼트',
+      keywords: ['netflix', '넷플릭스', 'streaming', '영화', 'movie'],
+      isFavorite: true,
+      lastModified: new Date('2024-01-18'),
+      strength: 5
+    }
+  ];
+
+  useEffect(() => {
+    if (!isLocked) {
+      setAccounts(sampleAccounts);
+    }
+  }, [isLocked]);
+
+  // 인덱싱 및 검색 로직
+  const searchIndex = useMemo(() => {
+    const index = new Map();
+    accounts.forEach(account => {
+      // 서비스명으로 인덱싱
+      const serviceKey = account.serviceName.toLowerCase();
+      if (!index.has(serviceKey)) index.set(serviceKey, []);
+      index.get(serviceKey).push(account);
+
+      // 키워드로 인덱싱
+      account.keywords.forEach(keyword => {
+        const key = keyword.toLowerCase();
+        if (!index.has(key)) index.set(key, []);
+        index.get(key).push(account);
+      });
+
+      // 카테고리로 인덱싱
+      const categoryKey = account.category.toLowerCase();
+      if (!index.has(categoryKey)) index.set(categoryKey, []);
+      index.get(categoryKey).push(account);
+
+      // 사용자명으로 인덱싱
+      const usernameKey = account.username.toLowerCase();
+      if (!index.has(usernameKey)) index.set(usernameKey, []);
+      index.get(usernameKey).push(account);
+    });
+    return index;
+  }, [accounts]);
+
+  const filteredAccounts = useMemo(() => {
+    let result = accounts;
+
+    // 카테고리 필터링
+    if (selectedCategory !== '전체') {
+      result = result.filter(account => account.category === selectedCategory);
+    }
+
+    // 검색어 필터링 (인덱스 활용)
+    if (searchTerm) {
+      const searchKey = searchTerm.toLowerCase();
+      const matchedAccounts = new Set();
+      
+      // 정확한 키워드 매칭
+      if (searchIndex.has(searchKey)) {
+        searchIndex.get(searchKey).forEach(account => matchedAccounts.add(account));
+      }
+
+      // 부분 매칭
+      for (const [key, accountList] of searchIndex) {
+        if (key.includes(searchKey) || searchKey.includes(key)) {
+          accountList.forEach(account => matchedAccounts.add(account));
+        }
+      }
+
+      result = Array.from(matchedAccounts).filter(account => 
+        selectedCategory === '전체' || account.category === selectedCategory
+      );
+    }
+
+    // 즐겨찾기 우선 정렬
+    return result.sort((a, b) => {
+      if (a.isFavorite && !b.isFavorite) return -1;
+      if (!a.isFavorite && b.isFavorite) return 1;
+      return b.lastModified - a.lastModified;
+    });
+  }, [accounts, searchTerm, selectedCategory, searchIndex]);
+
+  const categories = useMemo(() => {
+    const cats = ['전체', ...new Set(accounts.map(acc => acc.category))];
+    return cats;
+  }, [accounts]);
+
+  const handleUnlock = () => {
+    if (masterPassword === 'admin') {
+      setIsLocked(false);
+      setMasterPassword('');
+    }
+  };
+
+  const togglePasswordVisibility = (id) => {
+    setVisiblePasswords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const copyToClipboard = (text, type) => {
+    navigator.clipboard.writeText(text);
+    // 실제 구현시 토스트 알림 추가
+  };
+
+  const toggleFavorite = (id) => {
+    setAccounts(prev => prev.map(acc => 
+      acc.id === id ? { ...acc, isFavorite: !acc.isFavorite } : acc
+    ));
+  };
+
+  const getStrengthColor = (strength) => {
+    const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
+    return colors[strength - 1] || 'bg-gray-500';
+  };
+
+  const getStrengthText = (strength) => {
+    const texts = ['매우 약함', '약함', '보통', '강함', '매우 강함'];
+    return texts[strength - 1] || '알 수 없음';
+  };
+
+  if (isLocked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <Lock className="mx-auto h-16 w-16 text-slate-600 mb-4" />
+            <h1 className="text-2xl font-bold text-slate-800 mb-2">패스워드 관리자</h1>
+            <p className="text-slate-600">마스터 패스워드를 입력하세요</p>
+          </div>
+          
+          <div className="space-y-4">
+            <input
+              type="password"
+              value={masterPassword}
+              onChange={(e) => setMasterPassword(e.target.value)}
+              placeholder="마스터 패스워드 (demo: admin)"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onKeyPress={(e) => e.key === 'Enter' && handleUnlock()}
+            />
+            <button
+              onClick={handleUnlock}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors"
+            >
+              잠금 해제
+            </button>
+          </div>
+          
+          <div className="mt-6 text-center text-sm text-slate-500">
+            <p>데모용: 마스터 패스워드는 "admin" 입니다</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* 헤더 */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <Unlock className="h-6 w-6" />
+              패스워드 관리자
+            </h1>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                계정 추가
+              </button>
+              <button
+                onClick={() => setIsLocked(true)}
+                className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <Lock className="h-4 w-4" />
+                잠그기
+              </button>
+            </div>
+          </div>
+
+          {/* 검색 및 필터 */}
+          <div className="flex gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-80">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="서비스명, 키워드, 사용자명으로 빠른 검색..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 검색 결과 통계 */}
+          <div className="mt-3 text-sm text-slate-600">
+            {searchTerm && (
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
+                "{searchTerm}" 검색 결과: {filteredAccounts.length}개
+              </span>
+            )}
+            전체 {accounts.length}개 계정 중 {filteredAccounts.length}개 표시
+          </div>
+        </div>
+      </div>
+
+      {/* 메인 콘텐츠 */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAccounts.map(account => (
+            <div key={account.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow">
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
+                      {account.serviceName}
+                      {account.isFavorite && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                    </h3>
+                    <p className="text-slate-600 text-sm">{account.category}</p>
+                  </div>
+                  <button
+                    onClick={() => toggleFavorite(account.id)}
+                    className="text-slate-400 hover:text-yellow-500 transition-colors"
+                  >
+                    {account.isFavorite ? 
+                      <Star className="h-4 w-4 fill-current" /> : 
+                      <StarOff className="h-4 w-4" />
+                    }
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">사용자명</label>
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2">
+                      <span className="text-sm flex-1 font-mono">{account.username}</span>
+                      <button
+                        onClick={() => copyToClipboard(account.username, 'username')}
+                        className="text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">패스워드</label>
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2">
+                      <span className="text-sm flex-1 font-mono">
+                        {visiblePasswords.has(account.id) ? account.password : '•'.repeat(account.password.length)}
+                      </span>
+                      <button
+                        onClick={() => togglePasswordVisibility(account.id)}
+                        className="text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        {visiblePasswords.has(account.id) ? 
+                          <EyeOff className="h-4 w-4" /> : 
+                          <Eye className="h-4 w-4" />
+                        }
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(account.password, 'password')}
+                        className="text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>강도: {getStrengthText(account.strength)}</span>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(level => (
+                        <div
+                          key={level}
+                          className={`w-2 h-2 rounded-full ${
+                            level <= account.strength ? getStrengthColor(account.strength) : 'bg-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {account.keywords.slice(0, 3).map(keyword => (
+                      <span key={keyword} className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center mt-4 pt-3 border-t">
+                  <span className="text-xs text-slate-500">
+                    {account.lastModified.toLocaleDateString('ko-KR')}
+                  </span>
+                  <div className="flex gap-1">
+                    <button className="text-slate-400 hover:text-blue-600 transition-colors">
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <button className="text-slate-400 hover:text-red-600 transition-colors">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredAccounts.length === 0 && (
+          <div className="text-center py-12">
+            <Search className="mx-auto h-16 w-16 text-slate-300 mb-4" />
+            <h3 className="text-xl text-slate-600 mb-2">검색 결과가 없습니다</h3>
+            <p className="text-slate-500">다른 검색어를 시도해보세요</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PasswordManager;
