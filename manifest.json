@@ -1,0 +1,90 @@
+{
+  "name": "iPass - 패스워드 관리자",
+  "short_name": "iPass",
+  "description": "안전하고 편리한 비밀번호 관리 도구",
+  "start_url": "/iPass/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/iPass/",
+  "lang": "ko",
+  "categories": ["productivity", "utilities", "security"],
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "og_image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "패스워드 검색",
+      "short_name": "검색",
+      "description": "저장된 패스워드 빠른 검색",
+      "url": "/iPass/?action=search",
+      "icons": [
+        {
+          "src": "icon.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "새 계정 추가",
+      "short_name": "추가",
+      "description": "새로운 계정 정보 추가",
+      "url": "/iPass/?action=add",
+      "icons": [
+        {
+          "src": "icon.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
+}
