@@ -3,19 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>패스워드 관리자</title>
+    <title>iPass - 패스워드 관리자</title>
+    
+    <!-- PWA 매니페스트 -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- 아이콘들 -->
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <!-- iOS Safari 메타태그 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="iPass">
+    
+    <!-- 안드로이드 Chrome 메타태그 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Windows 타일 -->
+    <meta name="msapplication-TileImage" content="icon.png">
+    <meta name="msapplication-TileColor" content="#2563eb">
+    
+    <!-- Open Graph 메타태그 -->
+    <meta property="og:title" content="iPass - 패스워드 관리자">
+    <meta property="og:description" content="안전하고 편리한 비밀번호 관리 도구">
+    <meta property="og:image" content="https://lowcode-architect.github.io/iPass/og_image.png">
+    <meta property="og:url" content="https://lowcode-architect.github.io/iPass/">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="iPass - 패스워드 관리자">
+    <meta name="twitter:description" content="안전하고 편리한 비밀번호 관리 도구">
+    <meta name="twitter:image" content="https://lowcode-architect.github.io/iPass/og_image.png">
+    
+    <!-- SEO 메타태그 -->
+    <meta name="description" content="안전하고 편리한 비밀번호 관리 도구. 빠른 검색, 원클릭 복사, 즐겨찾기 기능을 제공합니다.">
+    <meta name="keywords" content="password manager, 패스워드 관리자, 비밀번호, 보안, PWA">
+    <meta name="author" content="LowCode-Architect">
+    
+    <!-- 외부 라이브러리 -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        
+        /* PWA 설치 버튼 스타일 */
+        .install-prompt {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .install-prompt:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+        }
+        
+        .install-prompt.show {
+            display: flex;
+        }
+        
+        /* 오프라인 상태 표시 */
+        .offline-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ef4444;
+            color: white;
+            text-align: center;
+            padding: 8px;
+            z-index: 1001;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .offline-indicator.show {
+            transform: translateY(0);
+        }
+        
+        /* 업데이트 알림 */
+        .update-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1002;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .update-notification.show {
+            display: flex;
+        }
+        
+        .update-button {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .update-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
     </style>
 </head>
 <body>
+    <!-- 오프라인 상태 표시 -->
+    <div id="offline-indicator" class="offline-indicator">
+        📡 오프라인 모드 - 일부 기능이 제한될 수 있습니다
+    </div>
+    
+    <!-- 업데이트 알림 -->
+    <div id="update-notification" class="update-notification">
+        <span>새로운 업데이트가 있습니다!</span>
+        <button id="update-button" class="update-button">업데이트</button>
+    </div>
+    
+    <!-- PWA 설치 프롬프트 -->
+    <div id="install-prompt" class="install-prompt">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        </svg>
+        <span>앱 설치</span>
+    </div>
+    
     <div id="root"></div>
 
     <script type="text/babel">
@@ -32,6 +176,50 @@
             const [editingId, setEditingId] = useState(null);
             const [visiblePasswords, setVisiblePasswords] = useState(new Set());
             const [copyFeedback, setCopyFeedback] = useState('');
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+            // 온라인/오프라인 상태 감지
+            useEffect(() => {
+                const handleOnline = () => setIsOnline(true);
+                const handleOffline = () => setIsOnline(false);
+                
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+                
+                return () => {
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
+                };
+            }, []);
+
+            // 오프라인 상태 표시
+            useEffect(() => {
+                const indicator = document.getElementById('offline-indicator');
+                if (!isOnline) {
+                    indicator.classList.add('show');
+                } else {
+                    indicator.classList.remove('show');
+                }
+            }, [isOnline]);
+
+            // URL 파라미터 처리 (PWA 바로가기)
+            useEffect(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const action = urlParams.get('action');
+                
+                if (action === 'search') {
+                    // 검색 바에 포커스
+                    setTimeout(() => {
+                        const searchInput = document.querySelector('input[placeholder*="검색"]');
+                        if (searchInput) searchInput.focus();
+                    }, 1000);
+                } else if (action === 'add') {
+                    // 계정 추가 폼 열기
+                    setTimeout(() => {
+                        setShowAddForm(true);
+                    }, 1000);
+                }
+            }, []);
 
             // 샘플 데이터
             const sampleAccounts = [
@@ -263,7 +451,7 @@
                                 <div className="mx-auto h-16 w-16 text-slate-600 mb-4 flex items-center justify-center">
                                     <Lock size={64} />
                                 </div>
-                                <h1 className="text-2xl font-bold text-slate-800 mb-2">패스워드 관리자</h1>
+                                <h1 className="text-2xl font-bold text-slate-800 mb-2">iPass</h1>
                                 <p className="text-slate-600">마스터 패스워드를 입력하세요</p>
                             </div>
                             
@@ -286,7 +474,7 @@
                             
                             <div className="mt-6 text-center text-sm text-slate-500">
                                 <p>데모용: 마스터 패스워드는 "admin" 입니다</p>
-                                <p className="mt-2">GitHub Pages에서 호스팅됩니다</p>
+                                <p className="mt-2">PWA 지원 - 홈 화면에 추가 가능</p>
                             </div>
                         </div>
                     </div>
@@ -308,9 +496,9 @@
                             <div className="flex items-center justify-between mb-4">
                                 <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                                     <Unlock size={24} />
-                                    패스워드 관리자
+                                    iPass
                                     <span className="text-sm font-normal text-slate-500 ml-2">
-                                        (GitHub Pages Demo)
+                                        {isOnline ? '(온라인)' : '(오프라인)'}
                                     </span>
                                 </h1>
                                 <div className="flex gap-2">
@@ -496,14 +684,87 @@
                     <footer className="bg-white border-t mt-12">
                         <div className="max-w-6xl mx-auto px-4 py-6">
                             <div className="text-center text-slate-500 text-sm">
-                                <p>패스워드 관리자 - GitHub Pages 데모</p>
-                                <p className="mt-1">GitHub Pages에서 정상 작동 확인</p>
+                                <p>iPass - 패스워드 관리자 PWA</p>
+                                <p className="mt-1">오프라인에서도 사용 가능</p>
                             </div>
                         </div>
                     </footer>
                 </div>
             );
         };
+
+        // PWA 관련 기능들
+        let deferredPrompt;
+        let swRegistration;
+
+        // Service Worker 등록
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    swRegistration = await navigator.serviceWorker.register('/iPass/sw.js');
+                    console.log('ServiceWorker registration successful');
+                    
+                    // 업데이트 감지
+                    swRegistration.addEventListener('updatefound', () => {
+                        const newWorker = swRegistration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // 새로운 업데이트 알림 표시
+                                showUpdateNotification();
+                            }
+                        });
+                    });
+                    
+                } catch (error) {
+                    console.log('ServiceWorker registration failed');
+                }
+            });
+        }
+
+        // 앱 설치 프롬프트
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallPrompt();
+        });
+
+        // 설치 프롬프트 표시
+        function showInstallPrompt() {
+            const installPrompt = document.getElementById('install-prompt');
+            installPrompt.classList.add('show');
+            
+            installPrompt.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    installPrompt.classList.remove('show');
+                }
+            });
+        }
+
+        // 업데이트 알림 표시
+        function showUpdateNotification() {
+            const updateNotification = document.getElementById('update-notification');
+            const updateButton = document.getElementById('update-button');
+            
+            updateNotification.classList.add('show');
+            
+            updateButton.addEventListener('click', () => {
+                if (swRegistration && swRegistration.waiting) {
+                    swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
+                }
+            });
+        }
+
+        // 앱이 설치되면 프롬프트 숨기기
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            const installPrompt = document.getElementById('install-prompt');
+            installPrompt.classList.remove('show');
+        });
 
         // 전역 에러 핸들링
         window.addEventListener('error', (e) => {
