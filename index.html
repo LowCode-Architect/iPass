@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>패스워드 관리자</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -220,7 +220,17 @@
 
             const copyToClipboard = async (text, type) => {
                 try {
-                    await navigator.clipboard.writeText(text);
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        // Fallback for older browsers or non-HTTPS contexts
+                        const textArea = document.createElement('textarea');
+                        textArea.value = text;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                    }
                     setCopyFeedback(`${type === 'username' ? '사용자명' : '패스워드'}이 복사되었습니다`);
                     setTimeout(() => setCopyFeedback(''), 2000);
                 } catch (err) {
@@ -487,12 +497,7 @@
                         <div className="max-w-6xl mx-auto px-4 py-6">
                             <div className="text-center text-slate-500 text-sm">
                                 <p>패스워드 관리자 - GitHub Pages 데모</p>
-                                <p className="mt-1">
-                                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" 
-                                       className="text-blue-600 hover:text-blue-800 transition-colors">
-                                        GitHub에서 소스코드 보기
-                                    </a>
-                                </p>
+                                <p className="mt-1">GitHub Pages에서 정상 작동 확인</p>
                             </div>
                         </div>
                     </footer>
@@ -500,7 +505,19 @@
             );
         };
 
-        ReactDOM.render(<PasswordManager />, document.getElementById('root'));
+        // 전역 에러 핸들링
+        window.addEventListener('error', (e) => {
+            console.error('Script error:', e.error);
+        });
+
+        // DOM이 로드된 후 렌더링
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                ReactDOM.render(<PasswordManager />, document.getElementById('root'));
+            });
+        } else {
+            ReactDOM.render(<PasswordManager />, document.getElementById('root'));
+        }
     </script>
 </body>
 </html>
