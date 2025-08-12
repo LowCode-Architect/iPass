@@ -6,14 +6,14 @@
     <title>iPass - 패스워드 관리자</title>
     
     <!-- PWA 매니페스트 -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     
     <!-- 아이콘들 -->
-    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="icon.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icon.png">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./icon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./icon.png">
+    <link rel="apple-touch-icon" href="./icon.png">
     
     <!-- iOS Safari 메타태그 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
     <meta name="theme-color" content="#2563eb">
     
     <!-- Windows 타일 -->
-    <meta name="msapplication-TileImage" content="icon.png">
+    <meta name="msapplication-TileImage" content="./icon.png">
     <meta name="msapplication-TileColor" content="#2563eb">
     
     <!-- Open Graph 메타태그 -->
@@ -46,16 +46,18 @@
     <meta name="keywords" content="password manager, 패스워드 관리자, 비밀번호, 보안, PWA">
     <meta name="author" content="LowCode-Architect">
     
-    <!-- 외부 라이브러리 -->
+    <!-- 외부 라이브러리 (CDN에서 안정적인 버전) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
         }
         
         /* PWA 설치 버튼 스타일 */
@@ -75,6 +77,8 @@
             gap: 8px;
             font-weight: 500;
             transition: all 0.3s ease;
+            border: none;
+            font-size: 14px;
         }
         
         .install-prompt:hover {
@@ -99,6 +103,7 @@
             z-index: 1001;
             transform: translateY(-100%);
             transition: transform 0.3s ease;
+            font-size: 14px;
         }
         
         .offline-indicator.show {
@@ -119,6 +124,7 @@
             display: none;
             align-items: center;
             gap: 12px;
+            font-size: 14px;
         }
         
         .update-notification.show {
@@ -138,9 +144,32 @@
         .update-button:hover {
             background: rgba(255,255,255,0.3);
         }
+
+        /* 로딩 스피너 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <!-- 로딩 표시 -->
+    <div id="loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+        <div style="background: white; padding: 30px; border-radius: 12px; text-align: center;">
+            <div class="loading-spinner" style="margin: 0 auto 20px;"></div>
+            <div style="color: #374151; font-weight: 500;">iPass 로딩 중...</div>
+        </div>
+    </div>
+
     <!-- 오프라인 상태 표시 -->
     <div id="offline-indicator" class="offline-indicator">
         📡 오프라인 모드 - 일부 기능이 제한될 수 있습니다
@@ -153,18 +182,33 @@
     </div>
     
     <!-- PWA 설치 프롬프트 -->
-    <div id="install-prompt" class="install-prompt">
+    <button id="install-prompt" class="install-prompt">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
         </svg>
         <span>앱 설치</span>
-    </div>
+    </button>
     
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { Search, Plus, Eye, EyeOff, Copy, Star, StarOff, Lock, Unlock, Settings, Trash2, Edit3 } = lucide;
+        
+        // Lucide 아이콘들 - 안전하게 가져오기
+        const getIcon = (name, size = 16) => {
+            if (typeof lucide !== 'undefined' && lucide[name]) {
+                return React.createElement(lucide[name], { size });
+            }
+            // 폴백 아이콘
+            return React.createElement('div', { 
+                style: { 
+                    width: size, 
+                    height: size, 
+                    background: '#94a3b8',
+                    borderRadius: '2px'
+                } 
+            });
+        };
 
         const PasswordManager = () => {
             const [isLocked, setIsLocked] = useState(true);
@@ -177,6 +221,17 @@
             const [visiblePasswords, setVisiblePasswords] = useState(new Set());
             const [copyFeedback, setCopyFeedback] = useState('');
             const [isOnline, setIsOnline] = useState(navigator.onLine);
+            const [isLoading, setIsLoading] = useState(true);
+
+            // 초기 로딩
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    setIsLoading(false);
+                    const loadingEl = document.getElementById('loading');
+                    if (loadingEl) loadingEl.style.display = 'none';
+                }, 1500);
+                return () => clearTimeout(timer);
+            }, []);
 
             // 온라인/오프라인 상태 감지
             useEffect(() => {
@@ -195,31 +250,14 @@
             // 오프라인 상태 표시
             useEffect(() => {
                 const indicator = document.getElementById('offline-indicator');
-                if (!isOnline) {
-                    indicator.classList.add('show');
-                } else {
-                    indicator.classList.remove('show');
+                if (indicator) {
+                    if (!isOnline) {
+                        indicator.classList.add('show');
+                    } else {
+                        indicator.classList.remove('show');
+                    }
                 }
             }, [isOnline]);
-
-            // URL 파라미터 처리 (PWA 바로가기)
-            useEffect(() => {
-                const urlParams = new URLSearchParams(window.location.search);
-                const action = urlParams.get('action');
-                
-                if (action === 'search') {
-                    // 검색 바에 포커스
-                    setTimeout(() => {
-                        const searchInput = document.querySelector('input[placeholder*="검색"]');
-                        if (searchInput) searchInput.focus();
-                    }, 1000);
-                } else if (action === 'add') {
-                    // 계정 추가 폼 열기
-                    setTimeout(() => {
-                        setShowAddForm(true);
-                    }, 1000);
-                }
-            }, []);
 
             // 샘플 데이터
             const sampleAccounts = [
@@ -315,28 +353,24 @@
                 }
             }, [isLocked]);
 
-            // 인덱싱 및 검색 로직
+            // 검색 인덱스
             const searchIndex = useMemo(() => {
                 const index = new Map();
                 accounts.forEach(account => {
-                    // 서비스명으로 인덱싱
                     const serviceKey = account.serviceName.toLowerCase();
                     if (!index.has(serviceKey)) index.set(serviceKey, []);
                     index.get(serviceKey).push(account);
 
-                    // 키워드로 인덱싱
                     account.keywords.forEach(keyword => {
                         const key = keyword.toLowerCase();
                         if (!index.has(key)) index.set(key, []);
                         index.get(key).push(account);
                     });
 
-                    // 카테고리로 인덱싱
                     const categoryKey = account.category.toLowerCase();
                     if (!index.has(categoryKey)) index.set(categoryKey, []);
                     index.get(categoryKey).push(account);
 
-                    // 사용자명으로 인덱싱
                     const usernameKey = account.username.toLowerCase();
                     if (!index.has(usernameKey)) index.set(usernameKey, []);
                     index.get(usernameKey).push(account);
@@ -347,22 +381,18 @@
             const filteredAccounts = useMemo(() => {
                 let result = accounts;
 
-                // 카테고리 필터링
                 if (selectedCategory !== '전체') {
                     result = result.filter(account => account.category === selectedCategory);
                 }
 
-                // 검색어 필터링 (인덱스 활용)
                 if (searchTerm) {
                     const searchKey = searchTerm.toLowerCase();
                     const matchedAccounts = new Set();
                     
-                    // 정확한 키워드 매칭
                     if (searchIndex.has(searchKey)) {
                         searchIndex.get(searchKey).forEach(account => matchedAccounts.add(account));
                     }
 
-                    // 부분 매칭
                     for (const [key, accountList] of searchIndex) {
                         if (key.includes(searchKey) || searchKey.includes(key)) {
                             accountList.forEach(account => matchedAccounts.add(account));
@@ -374,7 +404,6 @@
                     );
                 }
 
-                // 즐겨찾기 우선 정렬
                 return result.sort((a, b) => {
                     if (a.isFavorite && !b.isFavorite) return -1;
                     if (!a.isFavorite && b.isFavorite) return 1;
@@ -411,10 +440,13 @@
                     if (navigator.clipboard && window.isSecureContext) {
                         await navigator.clipboard.writeText(text);
                     } else {
-                        // Fallback for older browsers or non-HTTPS contexts
                         const textArea = document.createElement('textarea');
                         textArea.value = text;
+                        textArea.style.position = 'fixed';
+                        textArea.style.left = '-999999px';
+                        textArea.style.top = '-999999px';
                         document.body.appendChild(textArea);
+                        textArea.focus();
                         textArea.select();
                         document.execCommand('copy');
                         document.body.removeChild(textArea);
@@ -443,13 +475,17 @@
                 return texts[strength - 1] || '알 수 없음';
             };
 
+            if (isLoading) {
+                return null; // 로딩 중일 때는 아무것도 렌더링하지 않음
+            }
+
             if (isLocked) {
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
                             <div className="text-center mb-8">
                                 <div className="mx-auto h-16 w-16 text-slate-600 mb-4 flex items-center justify-center">
-                                    <Lock size={64} />
+                                    {getIcon('Lock', 64)}
                                 </div>
                                 <h1 className="text-2xl font-bold text-slate-800 mb-2">iPass</h1>
                                 <p className="text-slate-600">마스터 패스워드를 입력하세요</p>
@@ -495,7 +531,7 @@
                         <div className="max-w-6xl mx-auto px-4 py-4">
                             <div className="flex items-center justify-between mb-4">
                                 <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                    <Unlock size={24} />
+                                    {getIcon('Unlock', 24)}
                                     iPass
                                     <span className="text-sm font-normal text-slate-500 ml-2">
                                         {isOnline ? '(온라인)' : '(오프라인)'}
@@ -506,14 +542,14 @@
                                         onClick={() => setShowAddForm(true)}
                                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
                                     >
-                                        <Plus size={16} />
+                                        {getIcon('Plus', 16)}
                                         계정 추가
                                     </button>
                                     <button
                                         onClick={() => setIsLocked(true)}
                                         className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
                                     >
-                                        <Lock size={16} />
+                                        {getIcon('Lock', 16)}
                                         잠그기
                                     </button>
                                 </div>
@@ -523,7 +559,7 @@
                             <div className="flex gap-4 flex-wrap">
                                 <div className="relative flex-1 min-w-80">
                                     <div className="absolute left-3 top-3 h-4 w-4 text-slate-400">
-                                        <Search size={16} />
+                                        {getIcon('Search', 16)}
                                     </div>
                                     <input
                                         type="text"
@@ -568,7 +604,7 @@
                                                     {account.serviceName}
                                                     {account.isFavorite && (
                                                         <div className="text-yellow-500">
-                                                            <Star size={16} fill="currentColor" />
+                                                            {getIcon('Star', 16)}
                                                         </div>
                                                     )}
                                                 </h3>
@@ -578,10 +614,7 @@
                                                 onClick={() => toggleFavorite(account.id)}
                                                 className="text-slate-400 hover:text-yellow-500 transition-colors"
                                             >
-                                                {account.isFavorite ? 
-                                                    <Star size={16} fill="currentColor" /> : 
-                                                    <StarOff size={16} />
-                                                }
+                                                {account.isFavorite ? getIcon('Star', 16) : getIcon('StarOff', 16)}
                                             </button>
                                         </div>
 
@@ -594,7 +627,7 @@
                                                         onClick={() => copyToClipboard(account.username, 'username')}
                                                         className="text-slate-500 hover:text-slate-700 transition-colors"
                                                     >
-                                                        <Copy size={16} />
+                                                        {getIcon('Copy', 16)}
                                                     </button>
                                                 </div>
                                             </div>
@@ -609,16 +642,13 @@
                                                         onClick={() => togglePasswordVisibility(account.id)}
                                                         className="text-slate-500 hover:text-slate-700 transition-colors"
                                                     >
-                                                        {visiblePasswords.has(account.id) ? 
-                                                            <EyeOff size={16} /> : 
-                                                            <Eye size={16} />
-                                                        }
+                                                        {visiblePasswords.has(account.id) ? getIcon('EyeOff', 16) : getIcon('Eye', 16)}
                                                     </button>
                                                     <button
                                                         onClick={() => copyToClipboard(account.password, 'password')}
                                                         className="text-slate-500 hover:text-slate-700 transition-colors"
                                                     >
-                                                        <Copy size={16} />
+                                                        {getIcon('Copy', 16)}
                                                     </button>
                                                 </div>
                                             </div>
@@ -657,10 +687,10 @@
                                             </span>
                                             <div className="flex gap-1">
                                                 <button className="text-slate-400 hover:text-blue-600 transition-colors">
-                                                    <Edit3 size={16} />
+                                                    {getIcon('Edit3', 16)}
                                                 </button>
                                                 <button className="text-slate-400 hover:text-red-600 transition-colors">
-                                                    <Trash2 size={16} />
+                                                    {getIcon('Trash2', 16)}
                                                 </button>
                                             </div>
                                         </div>
@@ -672,7 +702,7 @@
                         {filteredAccounts.length === 0 && (
                             <div className="text-center py-12">
                                 <div className="mx-auto h-16 w-16 text-slate-300 mb-4 flex items-center justify-center">
-                                    <Search size={64} />
+                                    {getIcon('Search', 64)}
                                 </div>
                                 <h3 className="text-xl text-slate-600 mb-2">검색 결과가 없습니다</h3>
                                 <p className="text-slate-500">다른 검색어를 시도해보세요</p>
@@ -686,6 +716,12 @@
                             <div className="text-center text-slate-500 text-sm">
                                 <p>iPass - 패스워드 관리자 PWA</p>
                                 <p className="mt-1">오프라인에서도 사용 가능</p>
+                                <p className="mt-2">
+                                    <a href="https://github.com/lowcode-architect" target="_blank" rel="noopener noreferrer" 
+                                       className="text-blue-600 hover:text-blue-800 transition-colors">
+                                        GitHub에서 더 많은 프로젝트 보기
+                                    </a>
+                                </p>
                             </div>
                         </div>
                     </footer>
@@ -697,26 +733,30 @@
         let deferredPrompt;
         let swRegistration;
 
-        // Service Worker 등록
+        // Service Worker 등록 (안전하게)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    swRegistration = await navigator.serviceWorker.register('/iPass/sw.js');
+                    // GitHub Pages의 경우 상대 경로로 수정
+                    const swPath = window.location.pathname.endsWith('/') 
+                        ? window.location.pathname + 'sw.js'
+                        : window.location.pathname + '/sw.js';
+                    
+                    swRegistration = await navigator.serviceWorker.register(swPath);
                     console.log('ServiceWorker registration successful');
                     
                     // 업데이트 감지
-                    swRegistration.addEventListener('updatefound', () => {
+                    if (swRegistration.updatefound) {
                         const newWorker = swRegistration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // 새로운 업데이트 알림 표시
                                 showUpdateNotification();
                             }
                         });
-                    });
+                    }
                     
                 } catch (error) {
-                    console.log('ServiceWorker registration failed');
+                    console.log('ServiceWorker registration failed:', error);
                 }
             });
         }
@@ -731,17 +771,19 @@
         // 설치 프롬프트 표시
         function showInstallPrompt() {
             const installPrompt = document.getElementById('install-prompt');
-            installPrompt.classList.add('show');
-            
-            installPrompt.addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response to the install prompt: ${outcome}`);
-                    deferredPrompt = null;
-                    installPrompt.classList.remove('show');
-                }
-            });
+            if (installPrompt) {
+                installPrompt.classList.add('show');
+                
+                installPrompt.addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`User response to the install prompt: ${outcome}`);
+                        deferredPrompt = null;
+                        installPrompt.classList.remove('show');
+                    }
+                });
+            }
         }
 
         // 업데이트 알림 표시
@@ -749,21 +791,27 @@
             const updateNotification = document.getElementById('update-notification');
             const updateButton = document.getElementById('update-button');
             
-            updateNotification.classList.add('show');
-            
-            updateButton.addEventListener('click', () => {
-                if (swRegistration && swRegistration.waiting) {
-                    swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    window.location.reload();
+            if (updateNotification) {
+                updateNotification.classList.add('show');
+                
+                if (updateButton) {
+                    updateButton.addEventListener('click', () => {
+                        if (swRegistration && swRegistration.waiting) {
+                            swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                            window.location.reload();
+                        }
+                    });
                 }
-            });
+            }
         }
 
         // 앱이 설치되면 프롬프트 숨기기
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
             const installPrompt = document.getElementById('install-prompt');
-            installPrompt.classList.remove('show');
+            if (installPrompt) {
+                installPrompt.classList.remove('show');
+            }
         });
 
         // 전역 에러 핸들링
@@ -771,14 +819,28 @@
             console.error('Script error:', e.error);
         });
 
-        // DOM이 로드된 후 렌더링
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                ReactDOM.render(<PasswordManager />, document.getElementById('root'));
-            });
-        } else {
-            ReactDOM.render(<PasswordManager />, document.getElementById('root'));
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled promise rejection:', e.reason);
+        });
+
+        // React 렌더링 - 안전하게 처리
+        function renderApp() {
+            const rootElement = document.getElementById('root');
+            if (rootElement && typeof ReactDOM !== 'undefined') {
+                ReactDOM.render(React.createElement(PasswordManager), rootElement);
+            } else {
+                console.error('React or ReactDOM not loaded, or root element not found');
+            }
         }
+
+        // DOM이 준비되면 앱 렌더링
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderApp);
+        } else {
+            // 브라우저 호환성을 위해 약간의 지연
+            setTimeout(renderApp, 100);
+        }
+
     </script>
 </body>
 </html>
